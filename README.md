@@ -159,17 +159,18 @@ Performance insights:
 
 1. **Issue:** ModuleNotFoundError
 
-**Solution:** Make sure your virtual environment is activated and dependencies installed.
+	- **Solution:** Make sure your virtual environment is activated and dependencies installed.
 
 2. **Issue:** Gradio doesn’t launch
 
-**Solution:** Try another port: python app.py –server_port 7861
+	- **Solution:** Try another port: python app.py –server_port 7861
 
 3. **Issue:** Tiles not found
 
-**Solution:** Ensure your tile images are inside: mosaic_generator/tiles/
+	- **Solution:** Ensure your tile images are inside: mosaic_generator/tiles/
 
 4. **Issue:** Output mosaic is black
 
-**Solution:** Confirm tiles are valid PNG/JPG images. Ensure they are RGB images (not RGBA).
+	- **Solution:** Confirm tiles are valid PNG/JPG images. Ensure they are RGB images (not RGBA).
+
 
