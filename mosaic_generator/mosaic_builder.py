@@ -1,33 +1,32 @@
 """
 mosaic_builder.py
 
-Main mosaic construction logic. This module takes preprocessed images,
-grid structures from image_processor, and tile data from tile_manager
-to assemble the final optimized mosaic using NumPy vectorization.
+Main logic for constructing the mosaic using vectorized grid extraction
+and vectorized tile matching. Uses TileManager and image_processor utilities.
 """
 
 import numpy as np
-from .tile_manager import TileManager
-from .image_processor import (
-    preprocess_image,
-    compute_grid_shapes,
-    extract_cells_and_colors,
-)
+from . import image_processor
 from .config import DEFAULT_GRID_SIZE
 
 
 class MosaicBuilder:
     """
-    Builds a high-performance mosaic using vectorized operations.
+    High-performance mosaic builder using vectorized NumPy operations.
     """
 
-    def __init__(self, tile_manager: TileManager, grid_size=DEFAULT_GRID_SIZE):
+    def __init__(self, tile_manager):
+        """
+        Parameters
+        ----------
+        tile_manager : TileManager
+            Manages tile loading, caching, and feature extraction.
+        """
         self.tile_manager = tile_manager
-        self.grid_size = grid_size
 
-    # ---------------------------------------------------------
-    # Tile Matching Logic
-    # ---------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Internal vectorized helpers
+    # ------------------------------------------------------------------
 
     def _match_cells_to_tiles(self, cell_colors_flat: np.ndarray) -> np.ndarray:
         """
@@ -36,74 +35,72 @@ class MosaicBuilder:
         Parameters
         ----------
         cell_colors_flat : np.ndarray
-            Array of shape (num_cells, 3) with average RGB per cell.
+            Shape (num_cells, 3) array with average RGB for each grid cell.
 
         Returns
         -------
         np.ndarray
-            Tile indices of shape (num_cells,)
+            Tile indices mapped 1-to-1 to grid cells: shape (num_cells,)
         """
 
-        tile_colors = self.tile_manager.get_tile_colors()
+        # ✅ FIXED: Use tile_manager.tile_colors (correct attribute)
+        tile_colors = self.tile_manager.tile_colors
 
-        # Broadcasting: (C,1,3) - (1,T,3) → (C,T,3)
         diffs = cell_colors_flat[:, None, :] - tile_colors[None, :, :]
-        dists = np.linalg.norm(diffs, axis=2)  # (C,T)
+        dists = np.linalg.norm(diffs, axis=2)
+
         return np.argmin(dists, axis=1)
 
-    # ---------------------------------------------------------
-    # Mosaic Construction
-    # ---------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Public mosaic creation method
+    # ------------------------------------------------------------------
 
-    def create_mosaic(self, image):
+    def create_mosaic(self, image_array: np.ndarray, grid_size=DEFAULT_GRID_SIZE) -> np.ndarray:
         """
-        Full mosaic creation pipeline.
+        Create a mosaic from the input image using vectorized operations.
 
         Parameters
         ----------
-        image : PIL.Image or np.ndarray
-            Original input image.
+        image_array : np.ndarray
+            Preprocessed RGB image of shape (H, W, 3).
+
+        grid_size : tuple(int, int)
+            Number of (rows, columns) in the mosaic grid.
 
         Returns
         -------
         np.ndarray
-            Final mosaic as an array of shape (H,W,3)
+            Final mosaic image, same shape as input (H, W, 3).
         """
 
-        # Step 1: preprocess image (resize + RGB)
-        processed = preprocess_image(image)
+        # Extract grid cells + average colors
+        cells, cell_colors = image_processor.extract_cells_and_colors(image_array, grid_size)
 
-        # Step 2: identify grid shapes
-        grid_h, grid_w, cell_h, cell_w = compute_grid_shapes(
-            processed, self.grid_size
-        )
-
-        # Step 3: extract image cells + their average colors
-        _, cell_colors = extract_cells_and_colors(processed, self.grid_size)
-
-        num_cells = grid_h * grid_w
+        # Flatten for vector matching
+        num_cells = grid_size[0] * grid_size[1]
         cell_colors_flat = cell_colors.reshape(num_cells, 3)
 
-        # Step 4: vectorized best-tile matching
+        # Vectorized nearest-tile assignment
         best_tile_indices = self._match_cells_to_tiles(cell_colors_flat)
 
-        # Step 5: retrieve cached resized tiles
+        # Resize tiles for this grid cell size
+        grid_h, grid_w, cell_h, cell_w = image_processor.compute_grid_shapes(image_array, grid_size)
         resized_tiles = self.tile_manager.get_resized_tiles(cell_h, cell_w)
 
-        # Step 6: allocate output and reshape for easy placement
-        mosaic = np.zeros_like(processed, dtype=np.uint8)
+        # Prepare mosaic array
+        mosaic = np.zeros_like(image_array, dtype=np.uint8)
 
-        mosaic_cells = mosaic.reshape(
-            grid_h, cell_h, grid_w, cell_w, 3
-        ).transpose(0, 2, 1, 3, 4)
-
-        # Step 7: place tiles using vectorization
-        tiles_per_cell = resized_tiles[best_tile_indices]
-        tiles_per_cell = tiles_per_cell.reshape(
-            grid_h, grid_w, cell_h, cell_w, 3
+        # Reshape mosaic to match tile block layout
+        mosaic_cells = (
+            mosaic
+            .reshape(grid_h, cell_h, grid_w, cell_w, 3)
+            .transpose(0, 2, 1, 3, 4)
         )
+
+        # Map best tile index → resized tile
+        tiles_per_cell = resized_tiles[best_tile_indices]
+        tiles_per_cell = tiles_per_cell.reshape(grid_h, grid_w, cell_h, cell_w, 3)
 
         mosaic_cells[...] = tiles_per_cell
 
-        # Step 8: restore original image layout
-        return mosaic_cells.transpose(0, 2, 1, 3, 4).reshape(processed.shape)
+        return mosaic

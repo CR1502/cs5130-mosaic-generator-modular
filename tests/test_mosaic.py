@@ -1,9 +1,8 @@
 import unittest
 import numpy as np
 from pathlib import Path
-from PIL import Image
 
-from mosaic_generator.image_processor import ImageProcessor
+from mosaic_generator import image_processor
 from mosaic_generator.tile_manager import TileManager
 from mosaic_generator.mosaic_builder import MosaicBuilder
 from mosaic_generator.metrics import compute_mse
@@ -14,24 +13,27 @@ class TestMosaicGenerator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Ensure tiles exist
-        cls.tile_dir = Path("tiles")
-        if not cls.tile_dir.exists():
-            raise RuntimeError("Tiles folder missing. Add tiles before running tests.")
+        # Resolve root of project (folder containing mosaic_generator/)
+        project_root = Path(__file__).resolve().parents[1]
 
+        # Correct location of tiles folder inside the package
+        cls.tile_dir = project_root / "mosaic_generator" / "tiles"
+        if not cls.tile_dir.exists():
+            raise RuntimeError(f"Tiles folder missing. Expected: {cls.tile_dir}")
+
+        # Initialize managers
         cls.tile_manager = TileManager(tile_directory=str(cls.tile_dir))
-        cls.processor = ImageProcessor()
+        cls.processor = image_processor  # module, not class
         cls.builder = MosaicBuilder(cls.tile_manager)
 
-        # Create a small synthetic test image (RGB gradient)
+        # Create synthetic 256×256 gradient test image
         cls.test_image = np.zeros((256, 256, 3), dtype=np.uint8)
         for i in range(256):
-            cls.test_image[i, :, 0] = i        # R gradient
-            cls.test_image[:, i, 1] = i        # G gradient
-        # Blue stays 0
+            cls.test_image[i, :, 0] = i
+            cls.test_image[:, i, 1] = i
 
     def test_tile_loading(self):
-        """Confirm tiles load correctly and average colors computed."""
+        """Ensure tiles load and average colors compute correctly."""
         tm = self.tile_manager
 
         self.assertGreater(len(tm.tiles), 0, "No tiles loaded.")
@@ -39,7 +41,7 @@ class TestMosaicGenerator(unittest.TestCase):
         self.assertEqual(len(tm.tile_colors), tm.tiles.shape[0])
 
     def test_preprocessing(self):
-        """Ensure preprocessing resizes correctly."""
+        """Ensure preprocessing resizes to DEFAULT_TARGET_SIZE."""
         processed = self.processor.preprocess_image(self.test_image)
         self.assertEqual(
             processed.shape,
@@ -47,7 +49,7 @@ class TestMosaicGenerator(unittest.TestCase):
         )
 
     def test_grid_extraction(self):
-        """Check extraction of grid dimensions."""
+        """Ensure grid extraction computes correct shapes."""
         processed = self.processor.preprocess_image(self.test_image)
         grid_h, grid_w, cell_h, cell_w = self.processor.compute_grid_shapes(
             processed,
@@ -60,19 +62,20 @@ class TestMosaicGenerator(unittest.TestCase):
         self.assertEqual(cell_w, DEFAULT_TARGET_SIZE // grid_w)
 
     def test_mosaic_generation(self):
-        """Check mosaic output shape matches input shape."""
+        """Ensure mosaic has same shape and contains non-zero pixels."""
         processed = self.processor.preprocess_image(self.test_image)
-        mosaic = self.builder.create_mosaic(processed, DEFAULT_GRID_SIZE)
+        mosaic = self.builder.create_mosaic(processed)
 
         self.assertEqual(mosaic.shape, processed.shape)
-        self.assertTrue(np.any(mosaic != 0))
+        self.assertTrue(np.any(mosaic != 0), "Mosaic should not be all zeros.")
 
     def test_mse(self):
-        """Ensure MSE computation works."""
+        """Ensure MSE computes correctly and returns a float."""
         processed = self.processor.preprocess_image(self.test_image)
-        mosaic = self.builder.create_mosaic(processed, DEFAULT_GRID_SIZE)
+        mosaic = self.builder.create_mosaic(processed)
 
         mse = compute_mse(processed, mosaic)
+
         self.assertIsInstance(mse, float)
         self.assertGreaterEqual(mse, 0.0)
 

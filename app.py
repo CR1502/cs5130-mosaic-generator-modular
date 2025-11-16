@@ -1,99 +1,71 @@
 """
-app.py
-
-Gradio interface for the modularized, optimized mosaic generator.
-Connects the ImageProcessor, TileManager, MosaicBuilder, and metrics
-modules into a unified UI.
+Gradio App for Modular Mosaic Generator
 """
 
 import gradio as gr
 from pathlib import Path
+import numpy as np
+from PIL import Image
 
-from mosaic_generator.config import DEFAULT_GRID_SIZE
-from mosaic_generator.image_processor import ImageProcessor
+from mosaic_generator.image_processor import (
+    load_image,
+    preprocess_image,
+    extract_cells_and_colors,
+)
 from mosaic_generator.tile_manager import TileManager
 from mosaic_generator.mosaic_builder import MosaicBuilder
 from mosaic_generator.metrics import compute_mse
+from mosaic_generator.config import DEFAULT_GRID_SIZE
 
 
-# ---------------------------------------------------------
-# Initialize Core Components
-# ---------------------------------------------------------
+def create_gradio_interface():
 
-tile_manager = TileManager(tile_directory="tiles")
-processor = ImageProcessor()
-builder = MosaicBuilder(tile_manager)
+    # Load tiles
+    tile_manager = TileManager(tile_directory="mosaic_generator/tiles")
+    mosaic_builder = MosaicBuilder(tile_manager)
 
+    # Load example images
+    example_dir = Path("mosaic_generator/sample_images")
+    example_paths = []
+    if example_dir.exists():
+        for f in sorted(example_dir.iterdir()):
+            if f.suffix.lower() in [".png", ".jpg", ".jpeg"]:
+                example_paths.append(str(f))
 
-# ---------------------------------------------------------
-# Gradio Processing Function
-# ---------------------------------------------------------
+    def process_image(input_img, grid_size):
 
-def process_image(input_image, grid_size):
-    """
-    Core function called by Gradio.
-    """
-    try:
-        grid = (grid_size, grid_size)
-        proc_img = processor.preprocess_image(input_image)
-        mosaic = builder.create_mosaic(proc_img, grid)
-        mse = compute_mse(proc_img, mosaic)
+        if input_img is None:
+            return None, "Please upload or select an image."
 
-        message = f"Mosaic created.\nGrid: {grid_size}×{grid_size}\nMSE: {mse:.2f}"
-        return mosaic, message
+        # Preprocess
+        processed = preprocess_image(input_img)
 
-    except Exception as e:
-        return None, f"Error: {str(e)}"
+        # Build mosaic
+        mosaic = mosaic_builder.create_mosaic(processed)
 
+        # Compute error metric
+        mse = compute_mse(processed, mosaic)
 
-# ---------------------------------------------------------
-# Load Example Images
-# ---------------------------------------------------------
+        msg = f"Mosaic generated.\nGrid: {grid_size}×{grid_size}\nMSE: {mse:.2f}"
+        return mosaic, msg
 
-def get_examples():
-    example_dir = Path("sample_images")
-    if not example_dir.exists():
-        return []
-    paths = []
-    for f in sorted(example_dir.iterdir()):
-        if f.suffix.lower() in [".png", ".jpg", ".jpeg"]:
-            paths.append(str(f))
-    return paths
-
-
-example_paths = get_examples()
-
-
-# ---------------------------------------------------------
-# Build Gradio Interface
-# ---------------------------------------------------------
-
-def create_interface():
-    with gr.Blocks(title="Optimized Modular Image Mosaic Generator") as demo:
-
-        gr.Markdown("# 🎨 Optimized Modular Mosaic Generator")
-        gr.Markdown("Built with NumPy vectorization and modular architecture.")
+    with gr.Blocks(title="Modular Optimized Mosaic Generator") as demo:
+        gr.Markdown("# 🎨 Modular Optimized Mosaic Generator")
+        gr.Markdown("Using fully vectorized backend + modular architecture.")
 
         with gr.Row():
             with gr.Column():
-
                 input_image = gr.Image(type="pil", label="Input Image")
 
-                # Example Section
                 if example_paths:
                     gr.Markdown("### Example Images")
                     gr.Examples(
                         examples=example_paths,
                         inputs=input_image,
-                        label="Click to load",
+                        label="Click a sample image"
                     )
 
-                grid_slider = gr.Slider(
-                    minimum=8, maximum=64, step=8,
-                    value=DEFAULT_GRID_SIZE[0],
-                    label="Grid Size",
-                )
-
+                grid_size = gr.Slider(8, 64, value=32, step=8, label="Grid Size")
                 generate_btn = gr.Button("Generate Mosaic")
 
             with gr.Column():
@@ -102,13 +74,13 @@ def create_interface():
 
         generate_btn.click(
             fn=process_image,
-            inputs=[input_image, grid_slider],
-            outputs=[output_image, output_text]
+            inputs=[input_image, grid_size],
+            outputs=[output_image, output_text],
         )
 
     return demo
 
 
 if __name__ == "__main__":
-    app = create_interface()
-    app.launch()
+    demo = create_gradio_interface()
+    demo.launch()

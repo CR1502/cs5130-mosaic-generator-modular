@@ -16,8 +16,10 @@ DEFAULT_GRID_SIZE = (32, 32)
 # Base logical size of tiles before per-grid resizing
 TILE_BASE_SIZE = (32, 32)
 
+# Added because tile_manager imports TILE_SIZE
+TILE_SIZE = 32
+
 # Interpolation method for resizing images and tiles
-# Kept as a PIL constant so the rest of the code can reuse it.
 RESIZE_INTERPOLATION = Image.NEAREST
 
 # Valid image extensions for tiles and sample images
