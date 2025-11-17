@@ -129,6 +129,10 @@ Optimized_Modularized_Image_Mosaic/
 ├── README.md
 ├── requirements.txt
 │
+├── example1.jpg       # Sample images stored at root (HuggingFace requirement)
+├── example2.jpg
+├── example3.jpg
+│
 ├── mosaic_generator/
 │   ├── __init__.py
 │   ├── config.py
@@ -137,8 +141,7 @@ Optimized_Modularized_Image_Mosaic/
 │   ├── mosaic_builder.py
 │   ├── tile_manager.py
 │   ├── utils.py
-│   │
-│   └── tiles/                      # Tile images used for mosaic generation
+│   └── tiles/
 │       ├── tile_00.png
 │       ├── tile_01.png
 │       ├── ...
@@ -210,6 +213,7 @@ Performance insights:
 4. **Issue:** Output mosaic is black
 
 	- **Solution:** Confirm tiles are valid PNG/JPG images. Ensure they are RGB images (not RGBA).
+
 
 
 
