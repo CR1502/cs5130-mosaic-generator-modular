@@ -107,9 +107,9 @@ Optimized_Modularized_Image_Mosaic/
 │   ├── metrics.py                 # MSE calculation
 │   ├── utils.py                   # helper functions
 │   └── sample_images/             # sample JPG images for local testing
-│       ├── example1.jpg
-│       ├── example2.jpg
-│       └── example3.jpg
+│       ├── example_1.jpg
+│       ├── example_2.jpg
+│       └── example_3.jpg
 │
 └── tests/
     └── test_mosaic.py
@@ -129,9 +129,9 @@ Optimized_Modularized_Image_Mosaic/
 ├── README.md
 ├── requirements.txt
 │
-├── example1.jpg       # Sample images stored at root (HuggingFace requirement)
-├── example2.jpg
-├── example3.jpg
+├── example_1.jpg       # Sample images stored at root (HuggingFace requirement)
+├── example_2.jpg
+├── example_3.jpg
 │
 ├── mosaic_generator/
 │   ├── __init__.py
@@ -213,6 +213,7 @@ Performance insights:
 4. **Issue:** Output mosaic is black
 
 	- **Solution:** Confirm tiles are valid PNG/JPG images. Ensure they are RGB images (not RGBA).
+
 
 
 
