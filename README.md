@@ -90,24 +90,62 @@ python -m pytest tests/test_mosaic.py
 ---
 
 ## Repository Structure
+#### Local Development Repository Structure
+```
+Optimized_Modularized_Image_Mosaic/
+│
+├── app.py                         # Gradio interface + logs + metrics
+├── requirements.txt
+├── README.md
+│
+├── mosaic_generator/
+│   ├── __init__.py
+│   ├── config.py                  # constants and default values
+│   ├── image_processor.py         # load, preprocess, grid extraction
+│   ├── tile_manager.py            # tile caching + avg color extraction
+│   ├── mosaic_builder.py          # mosaic creation engine
+│   ├── metrics.py                 # MSE calculation
+│   ├── utils.py                   # helper functions
+│   └── sample_images/             # sample JPG images for local testing
+│       ├── example1.jpg
+│       ├── example2.jpg
+│       └── example3.jpg
+│
+└── tests/
+    └── test_mosaic.py
 
 ```
-cs5130-mosaic-generator-modular/
-├── app.py                         (Gradio interface)
+#### Hugging Face Deployment Repository Structure
+Reason:
+
+Hugging Face Spaces does not allow nested folders containing local images to be automatically cached or served.
+Gradio’s Examples() also requires image files to be directly accessible, not inside nested paths.
+
+Because of this, sample images were uploaded at the project root.
+```
+Optimized_Modularized_Image_Mosaic/
+│
+├── app.py
+├── README.md
 ├── requirements.txt
-├── README.txt
+│
 ├── mosaic_generator/
-│   ├── init.py
-│   ├── config.py                  (constants)
-│   ├── image_processor.py         (loading, preprocessing, grid extraction)
-│   ├── tile_manager.py            (tile loading, caching, color extraction)
-│   ├── mosaic_builder.py          (mosaic creation engine)
-│   ├── metrics.py                 (MSE metric)
-│   ├── utils.py                   (helper functions)
-│   ├── tiles/                     (tile images)
-│   └── sample_images/             (sample inputs)
+│   ├── __init__.py
+│   ├── config.py
+│   ├── image_processor.py
+│   ├── metrics.py
+│   ├── mosaic_builder.py
+│   ├── tile_manager.py
+│   ├── utils.py
+│   │
+│   └── tiles/                      # Tile images used for mosaic generation
+│       ├── tile_00.png
+│       ├── tile_01.png
+│       ├── ...
+│
 └── tests/
-└── test_mosaic.py
+    ├── __init__.py
+    └── test_mosaic.py
 ```
 ---
 
@@ -172,5 +210,6 @@ Performance insights:
 4. **Issue:** Output mosaic is black
 
 	- **Solution:** Confirm tiles are valid PNG/JPG images. Ensure they are RGB images (not RGBA).
+
 
 
